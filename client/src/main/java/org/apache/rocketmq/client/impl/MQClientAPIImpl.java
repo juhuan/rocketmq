@@ -2010,6 +2010,17 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    /**
+     * 从NameServer获取默认主题路由信息
+     * 此方法用于在客户端应用启动时或网络故障时自动重连时获取主题的路由信息
+     * 它调用了一个内部方法来实际执行查询，但使用了预定义的主题名称
+     *
+     * @param timeoutMillis 查询操作的超时时间，以毫秒为单位
+     * @return 返回主题的路由信息，包括主题在各个NameServer上的地址等
+     * @throws RemotingException 如果与NameServer的通信出现异常
+     * @throws MQClientException 如果客户端实例化失败或其他客户端内部错误
+     * @throws InterruptedException 如果当前线程在等待过程中被中断
+     */
     public TopicRouteData getDefaultTopicRouteInfoFromNameServer(final long timeoutMillis)
         throws RemotingException, MQClientException, InterruptedException {
 
@@ -2021,33 +2032,51 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
         return getTopicRouteInfoFromNameServer(topic, timeoutMillis, true);
     }
 
+    /**
+     * 从NameServer获取主题的路由信息
+     *
+     * @param topic 主题名称，用于查询路由信息
+     * @param timeoutMillis 请求超时时间，单位毫秒
+     * @param allowTopicNotExist 如果主题不存在时，是否允许继续执行
+     * @return 返回主题的路由数据
+     * @throws MQClientException 消息队列客户端异常
+     * @throws InterruptedException 线程中断异常
+     * @throws RemotingTimeoutException 远程调用超时异常
+     * @throws RemotingSendRequestException 远程发送请求异常
+     * @throws RemotingConnectException 远程连接异常
+     */
     public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis,
         boolean allowTopicNotExist) throws MQClientException, InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException {
+        // 创建获取路由信息的请求头
         GetRouteInfoRequestHeader requestHeader = new GetRouteInfoRequestHeader();
-        requestHeader.setTopic(topic);
+        requestHeader.setTopic(topic); // 设置主题名称
+
+        // 创建远程命令请求，请求类型为根据主题获取路由信息
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, requestHeader);
 
+        // 同步发送请求到NameServer并等待响应
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
-        assert response != null;
+        assert response != null; // 确保有响应返回
+
+        // 根据响应码处理不同的响应情况
         switch (response.getCode()) {
             case ResponseCode.TOPIC_NOT_EXIST: {
                 if (allowTopicNotExist) {
-                    log.warn("get Topic [{}] RouteInfoFromNameServer is not exist value", topic);
+                    log.warn("get Topic [{}] RouteInfoFromNameServer is not exist value", topic); // 主题不存在时记录警告日志
                 }
-
-                break;
+                break; // 如果允许主题不存在，则继续后续处理
             }
             case ResponseCode.SUCCESS: {
                 byte[] body = response.getBody();
                 if (body != null) {
-                    return TopicRouteData.decode(body, TopicRouteData.class);
+                    return TopicRouteData.decode(body, TopicRouteData.class); // 解析响应体为TopicRouteData对象并返回
                 }
             }
             default:
                 break;
         }
 
-        throw new MQClientException(response.getCode(), response.getRemark());
+        throw new MQClientException(response.getCode(), response.getRemark()); // 对于其他响应码，抛出异常
     }
 
     public TopicList getTopicListFromNameServer(final long timeoutMillis)

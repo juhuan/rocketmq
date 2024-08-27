@@ -839,8 +839,18 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
 
+    /**
+     * 尝试查找指定主题的发布信息
+     *
+     * @param topic 主题名称
+     * @return 返回主题的发布信息
+     *
+     * 该方法首先尝试从本地缓存中获取指定主题的发布信息如果信息不存在或无效，则会尝试从名称服务器获取最新的路由信息并存入本地缓存
+     * 如果成功获取到有效的路由信息，则返回相应的发布信息对象；否则，强制从名称服务器更新路由信息，并再次尝试获取发布信息
+     */
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
+        // 如果获取的发布信息为空或无效，则需要从名称服务器更新路由信息
         if (null == topicPublishInfo || !topicPublishInfo.ok()) {
             this.topicPublishInfoTable.putIfAbsent(topic, new TopicPublishInfo());
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);
@@ -850,11 +860,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) {
             return topicPublishInfo;
         } else {
+            // 如果发布信息无效，则强制从名称服务器更新路由信息，并指定默认的生产者对象
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer);
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
             return topicPublishInfo;
         }
     }
+
 
     private SendResult sendKernelImpl(final Message msg,
         final MessageQueue mq,
