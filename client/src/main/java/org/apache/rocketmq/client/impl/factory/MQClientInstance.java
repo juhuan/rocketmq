@@ -316,7 +316,7 @@ public class MQClientInstance {
                     this.pullMessageService.start();
                     // Start rebalance service
                     this.rebalanceService.start();
-                    // Start push service
+                    // Start push service, TODO：没看懂为啥要再调用回去
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
                     log.info("the client factory [{}] start OK", this.clientId);
                     this.serviceState = ServiceState.RUNNING;
@@ -329,7 +329,13 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 启动定时任务
+     * 本方法旨在定期执行一系列关键任务，以确保客户端与消息服务器之间的连接和信息同步
+     * 这些任务包括获取名称服务器地址、更新主题路由信息、清理离线代理、发送心跳包以及调整线程池等
+     */
     private void startScheduledTask() {
+        // 当名称服务器地址为空时，定期尝试获取名称服务器地址
         if (null == this.clientConfig.getNamesrvAddr()) {
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
@@ -340,6 +346,7 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
+        // 定期更新主题路由信息
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.updateTopicRouteInfoFromNameServer();
@@ -348,6 +355,7 @@ public class MQClientInstance {
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS);
 
+        // 定期清理离线代理，并向所有代理发送心跳包
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.cleanOfflineBroker();
@@ -357,6 +365,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // 定期持久化所有消费者的位点信息
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.persistAllConsumerOffset();
@@ -365,6 +374,7 @@ public class MQClientInstance {
             }
         }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+        // 定期调整线程池大小以应对负载变化
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.adjustThreadPool();
@@ -373,6 +383,7 @@ public class MQClientInstance {
             }
         }, 1, 1, TimeUnit.MINUTES);
     }
+
 
     public String getClientId() {
         return clientId;
@@ -529,22 +540,37 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * 使用锁向所有Broker发送心跳信号
+     * 此方法尝试获取锁，如果成功获取锁，则根据配置决定发送心跳的版本
+     * 如果使用心跳V2版本，则调用sendHeartbeatToAllBrokerV2方法，否则调用sendHeartbeatToAllBroker方法
+     * 在任何异常情况下，都会释放锁
+     * 如果无法获取锁，则记录警告日志并返回false
+     *
+     * @return 如果成功发送心跳或在异常情况下成功释放锁，则返回true；否则返回false
+     */
     public boolean sendHeartbeatToAllBrokerWithLock() {
+        // 尝试获取锁，确保并发安全
         if (this.lockHeartbeat.tryLock()) {
             try {
+                // 根据配置判断是否使用心跳V2版本
                 if (clientConfig.isUseHeartbeatV2()) {
                     return this.sendHeartbeatToAllBrokerV2(false);
                 } else {
                     return this.sendHeartbeatToAllBroker();
                 }
             } catch (final Exception e) {
+                // 异常日志记录
                 log.error("sendHeartbeatToAllBroker exception", e);
             } finally {
+                // 确保锁被释放
                 this.lockHeartbeat.unlock();
             }
         } else {
+            // 无法获取锁时，记录警告日志
             log.warn("lock heartBeat, but failed. [{}]", this.clientId);
         }
+        // 发送心跳失败或释放锁失败时，返回false
         return false;
     }
 
@@ -644,37 +670,67 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * 向所有Broker发送心跳信息
+     *
+     * 本方法首先准备心跳数据，然后根据心跳数据中是否包含生产者或消费者的信
+     * 息决定是否向Broker发送心跳。如果心跳数据中既不包含生产者也不包含消费
+     * 者的信息，并且当前没有可用的Broker地址，则不发送心跳并返回false。如
+     * 果有有效的Broker地址，则遍历地址表，向每个Broker实例发送心跳信息
+     *
+     * @return boolean 如果成功发送心跳或没有需要发送的心跳信息则返回true，否则返回false
+     */
     private boolean sendHeartbeatToAllBroker() {
+        // 准备心跳数据，不进行任何额外的操作
         final HeartbeatData heartbeatData = this.prepareHeartbeatData(false);
+
+        // 检查心跳数据中是否包含生产者信息
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
+        // 检查心跳数据中是否包含消费者信息
         final boolean consumerEmpty = heartbeatData.getConsumerDataSet().isEmpty();
+
+        // 如果心跳数据中既没有生产者也没有消费者的信息，则记录警告日志并返回false
         if (producerEmpty && consumerEmpty) {
             log.warn("sending heartbeat, but no consumer and no producer. [{}]", this.clientId);
             return false;
         }
 
+        // 如果Broker地址表为空，则不进行任何操作并返回false
         if (this.brokerAddrTable.isEmpty()) {
             return false;
         }
+
+        // 遍历Broker地址表
         for (Entry<String, HashMap<Long, String>> brokerClusterInfo : this.brokerAddrTable.entrySet()) {
             String brokerName = brokerClusterInfo.getKey();
             HashMap<Long, String> oneTable = brokerClusterInfo.getValue();
+
+            // 如果当前Broker集群的信息为空，则跳过
             if (oneTable == null) {
                 continue;
             }
+
+            // 遍历单个Broker集群中的所有Broker实例
             for (Entry<Long, String> singleBrokerInstance : oneTable.entrySet()) {
                 Long id = singleBrokerInstance.getKey();
                 String addr = singleBrokerInstance.getValue();
+
+                // 如果Broker地址为空，则跳过
                 if (addr == null) {
                     continue;
                 }
+
+                // 如果心跳数据中只包含消费者信息，并且当前Broker不是主Broker，则跳过
                 if (consumerEmpty && MixAll.MASTER_ID != id) {
                     continue;
                 }
 
+                // 向Broker发送心跳信息
                 sendHeartbeatToBroker(id, brokerName, addr, heartbeatData);
             }
         }
+
+        // 成功发送心跳信息后返回true
         return true;
     }
 
@@ -778,7 +834,7 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
-                    // 获取默认路由信息
+                    // 获取路由信息
                     if (isDefault && defaultMQProducer != null) {
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(clientConfig.getMqClientApiTimeout());
                         // 调整队列数量以确保不超过默认配置
@@ -793,7 +849,6 @@ public class MQClientInstance {
                     } else {
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, clientConfig.getMqClientApiTimeout());
                     }
-                    // 检查返回的路由信息是否为空
                     if (topicRouteData != null) {
                         // 比较新旧路由信息是否发生变化
                         TopicRouteData old = this.topicRouteTable.get(topic);
@@ -933,13 +988,26 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * 检查是否需要更新主题路由信息
+     *
+     * 此方法通过遍历producerTable和consumerTable来检查指定主题是否需要更新路由信息
+     * 它首先检查生产者，然后检查消费者是否需要更新指定主题的路由信息
+     *
+     * @param topic 要检查的主题
+     * @return 如果需要更新路由信息，则返回true；否则返回false
+     */
     private boolean isNeedUpdateTopicRouteInfo(final String topic) {
+        // 初始化结果为false，后续根据条件更新
         boolean result = false;
+
+        // 遍历producerTable，检查是否需要更新主题路由信息
         Iterator<Entry<String, MQProducerInner>> producerIterator = this.producerTable.entrySet().iterator();
         while (producerIterator.hasNext() && !result) {
             Entry<String, MQProducerInner> entry = producerIterator.next();
             MQProducerInner impl = entry.getValue();
             if (impl != null) {
+                // 调用MQProducerInner的isPublishTopicNeedUpdate方法检查指定主题是否需要更新
                 result = impl.isPublishTopicNeedUpdate(topic);
             }
         }
@@ -948,15 +1016,18 @@ public class MQClientInstance {
             return true;
         }
 
+        // 遍历consumerTable，检查是否需要更新主题路由信息
         Iterator<Entry<String, MQConsumerInner>> consumerIterator = this.consumerTable.entrySet().iterator();
         while (consumerIterator.hasNext() && !result) {
             Entry<String, MQConsumerInner> entry = consumerIterator.next();
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
+                // 调用MQConsumerInner的isSubscribeTopicNeedUpdate方法检查指定主题是否需要更新
                 result = impl.isSubscribeTopicNeedUpdate(topic);
             }
         }
 
+        // 返回最终的检查结果
         return result;
     }
 

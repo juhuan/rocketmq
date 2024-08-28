@@ -30,16 +30,37 @@ import org.apache.rocketmq.common.utils.StartAndShutdown;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 
+/**
+ * MQClientAPIFactory类用于创建和管理MQ客户端API的工厂类
+ * 它实现了StartAndShutdown接口，提供客户端的启动和关闭方法
+ */
 public class MQClientAPIFactory implements StartAndShutdown {
 
+    // 客户端数组，用于存储创建的MQ客户端API实例
     private MQClientAPIExt[] clients;
+    // 客户端名称前缀，用于区分不同的客户端实例
     private final String namePrefix;
+    // 客户端数量，决定要创建的客户端实例的数量
     private final int clientNum;
+    // 客户端远程处理进程，用于处理客户端的远程通信
     private final ClientRemotingProcessor clientRemotingProcessor;
+    // RPC钩子，用于扩展和定制RPC调用行为
     private final RPCHook rpcHook;
+    // 定时任务的线程池，用于执行定时任务
     private final ScheduledExecutorService scheduledExecutorService;
+    // 名称服务器访问配置，存储名称服务器的地址或域名配置
     private final NameserverAccessConfig nameserverAccessConfig;
 
+    /**
+     * 构造函数，初始化MQClientAPIFactory实例
+     *
+     * @param nameserverAccessConfig 名称服务器访问配置
+     * @param namePrefix 客户端名称前缀
+     * @param clientNum 客户端数量
+     * @param clientRemotingProcessor 客户端远程处理进程
+     * @param rpcHook RPC钩子
+     * @param scheduledExecutorService 定时任务的线程池
+     */
     public MQClientAPIFactory(NameserverAccessConfig nameserverAccessConfig, String namePrefix, int clientNum,
         ClientRemotingProcessor clientRemotingProcessor,
         RPCHook rpcHook, ScheduledExecutorService scheduledExecutorService) {
@@ -53,6 +74,9 @@ public class MQClientAPIFactory implements StartAndShutdown {
         this.init();
     }
 
+    /**
+     * 初始化方法，设置系统属性和名称服务器地址
+     */
     protected void init() {
         System.setProperty(ClientConfig.SEND_MESSAGE_WITH_VIP_CHANNEL_PROPERTY, "false");
         if (StringUtils.isEmpty(nameserverAccessConfig.getNamesrvDomain())) {
@@ -66,6 +90,12 @@ public class MQClientAPIFactory implements StartAndShutdown {
         }
     }
 
+    /**
+     * 获取一个MQ客户端API实例
+     * 如果有多个客户端，随机选择一个
+     *
+     * @return MQClientAPIExt实例
+     */
     public MQClientAPIExt getClient() {
         if (clients.length == 1) {
             return this.clients[0];
@@ -74,6 +104,12 @@ public class MQClientAPIFactory implements StartAndShutdown {
         return this.clients[index];
     }
 
+    /**
+     * 启动所有MQ客户端API实例
+     * 根据客户端数量创建相应数量的客户端实例
+     *
+     * @throws Exception 如果启动过程中发生错误
+     */
     @Override
     public void start() throws Exception {
         this.clients = new MQClientAPIExt[this.clientNum];
@@ -83,6 +119,11 @@ public class MQClientAPIFactory implements StartAndShutdown {
         }
     }
 
+    /**
+     * 关闭所有MQ客户端API实例
+     *
+     * @throws Exception 如果关闭过程中发生错误
+     */
     @Override
     public void shutdown() throws Exception {
         for (int i = 0; i < this.clientNum; i++) {
@@ -90,6 +131,12 @@ public class MQClientAPIFactory implements StartAndShutdown {
         }
     }
 
+    /**
+     * 创建并启动一个MQ客户端API实例
+     *
+     * @param instanceName 客户端实例的名称
+     * @return 创建并启动的MQClientAPIExt实例
+     */
     protected MQClientAPIExt createAndStart(String instanceName) {
         ClientConfig clientConfig = new ClientConfig();
         clientConfig.setInstanceName(instanceName);

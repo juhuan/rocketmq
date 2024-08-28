@@ -94,7 +94,7 @@ public class PopSlaveActingMasterIT extends ContainerIntegrationTestBase {
 
         this.switchPop(topic);
 
-        producer.getDefaultMQProducerImpl().getmQClientFactory().updateTopicRouteInfoFromNameServer(topic);
+        producer.getDefaultMQProducerImpl().getMqClientInstance().updateTopicRouteInfoFromNameServer(topic);
 
         MessageQueue messageQueue = new MessageQueue(topic, master1With3Replicas.getBrokerConfig().getBrokerName(), 0);
         int sendSuccess = 0;
@@ -158,7 +158,7 @@ public class PopSlaveActingMasterIT extends ContainerIntegrationTestBase {
 
         this.switchPop(topic);
 
-        producer.getDefaultMQProducerImpl().getmQClientFactory().updateTopicRouteInfoFromNameServer(topic);
+        producer.getDefaultMQProducerImpl().getMqClientInstance().updateTopicRouteInfoFromNameServer(topic);
 
         Set<String> sendToIsolateMsgSet = new HashSet<>();
         MessageQueue messageQueue = new MessageQueue(topic, master1With3Replicas.getBrokerConfig().getBrokerName(), 0);
@@ -238,7 +238,7 @@ public class PopSlaveActingMasterIT extends ContainerIntegrationTestBase {
 
         switchPop(topic);
 
-        producer.getDefaultMQProducerImpl().getmQClientFactory().updateTopicRouteInfoFromNameServer(topic);
+        producer.getDefaultMQProducerImpl().getMqClientInstance().updateTopicRouteInfoFromNameServer(topic);
 
         MessageQueue messageQueue = new MessageQueue(topic, master1With3Replicas.getBrokerConfig().getBrokerName(), 0);
         int sendSuccess = 0;
@@ -317,7 +317,7 @@ public class PopSlaveActingMasterIT extends ContainerIntegrationTestBase {
         String retryTopic = KeyBuilder.buildPopRetryTopic(topic, CONSUME_GROUP, brokerConfig.isEnableRetryTopicV2());
         createTopic(retryTopic);
 
-        producer.getDefaultMQProducerImpl().getmQClientFactory().updateTopicRouteInfoFromNameServer(topic);
+        producer.getDefaultMQProducerImpl().getMqClientInstance().updateTopicRouteInfoFromNameServer(topic);
 
         Set<String> sendToIsolateMsgSet = new HashSet<>();
         MessageQueue messageQueue = new MessageQueue(topic, master1With3Replicas.getBrokerConfig().getBrokerName(), 0);
@@ -404,7 +404,7 @@ public class PopSlaveActingMasterIT extends ContainerIntegrationTestBase {
         String retryTopic = KeyBuilder.buildPopRetryTopic(topic, CONSUME_GROUP, brokerConfig.isEnableRetryTopicV2());
         createTopic(retryTopic);
 
-        producer.getDefaultMQProducerImpl().getmQClientFactory().updateTopicRouteInfoFromNameServer(topic);
+        producer.getDefaultMQProducerImpl().getMqClientInstance().updateTopicRouteInfoFromNameServer(topic);
 
         Set<String> sendToIsolateMsgSet = new HashSet<>();
         MessageQueue messageQueue = new MessageQueue(topic, master1With3Replicas.getBrokerConfig().getBrokerName(), 0);

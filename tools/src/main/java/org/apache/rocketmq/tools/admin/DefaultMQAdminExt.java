@@ -244,9 +244,20 @@ public class DefaultMQAdminExt extends ClientConfig implements MQAdminExt {
         return defaultMQAdminExtImpl.examineSubscriptionGroupConfig(addr, group);
     }
 
+    /**
+     * 查询指定主题在指定地址的配置
+     *
+     * @param addr 主题所在的地址
+     * @param topic 要查询的主題名稱
+     * @return 返回主题的配置信息
+     * @throws RemotingSendRequestException 当发送请求出现异常时抛出
+     * @throws RemotingConnectException 当连接出现异常时抛出
+     * @throws RemotingTimeoutException 当连接超时抛出
+     * @throws InterruptedException 当线程中断时抛出
+     * @throws MQBrokerException 当消息队列代理出现异常时抛出
+     */
     @Override
-    public TopicConfig examineTopicConfig(String addr,
-        String topic) throws RemotingSendRequestException, RemotingConnectException, RemotingTimeoutException, InterruptedException, MQBrokerException {
+    public TopicConfig examineTopicConfig(String addr, String topic) throws RemotingSendRequestException, RemotingConnectException, RemotingTimeoutException, InterruptedException, MQBrokerException {
         return defaultMQAdminExtImpl.examineTopicConfig(addr, topic);
     }
 
@@ -313,6 +324,20 @@ public class DefaultMQAdminExt extends ClientConfig implements MQAdminExt {
         return defaultMQAdminExtImpl.examineConsumeStatsConcurrent(consumerGroup, topic);
     }
 
+    /**
+     * 检查Broker集群信息
+     *
+     * 本方法通过调用MQAdminExt的实现类来获取Broker的集群信息它可能会抛出多种异常，
+     * 包括连接异常、超时异常、请求异常和Broker异常这些异常情况需要调用者根据具体
+     * 业务场景进行处理
+     *
+     * @return ClusterInfo 返回的集群信息对象，包含Broker的集群详情
+     * @throws InterruptedException 当线程被中断时抛出
+     * @throws RemotingConnectException 当远程连接发生异常时抛出
+     * @throws RemotingTimeoutException 当远程调用超时时抛出
+     * @throws RemotingSendRequestException 当发送请求到远程服务器发生异常时抛出
+     * @throws MQBrokerException 当MQBroker操作发生异常时抛出
+     */
     @Override
     public ClusterInfo examineBrokerClusterInfo() throws InterruptedException, RemotingConnectException, RemotingTimeoutException,
         RemotingSendRequestException, MQBrokerException {

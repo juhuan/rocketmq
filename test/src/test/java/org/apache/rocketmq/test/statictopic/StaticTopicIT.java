@@ -297,7 +297,7 @@ public class StaticTopicIT extends BaseConf {
         while (System.currentTimeMillis() - start <= timeMs) {
             boolean allOk = true;
             if (producer != null) {
-                currentInstance = producer.getDefaultMQProducerImpl().getmQClientFactory();
+                currentInstance = producer.getDefaultMQProducerImpl().getMqClientInstance();
                 currentInstance.updateTopicRouteInfoFromNameServer(topic);
                 if (!MQAdminTestUtils.checkStaticTopic(topic, adminExt, currentInstance)) {
                     allOk = false;

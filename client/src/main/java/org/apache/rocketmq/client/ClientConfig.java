@@ -108,23 +108,31 @@ public class ClientConfig {
      */
     protected String traceTopic;
 
+    /**
+     * 构建MQ客户端ID
+     * 该方法用于根据客户端IP、实例名称、单元名称和流请求类型来构造一个唯一的客户端ID
+     * 客户端ID的格式为：客户端IP@实例名称@单元名称@流请求类型，其中单元名称和流请求类型为可选
+     * 这个ID用于在消息队列中唯一标识一个客户端，以便于消息的发送和接收
+     *
+     * @return String 构建好的MQ客户端ID
+     */
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
-        sb.append(this.getClientIP());
+        sb.append(this.getClientIP()); // 添加客户端IP
 
         sb.append("@");
-        sb.append(this.getInstanceName());
+        sb.append(this.getInstanceName()); // 添加实例名称
         if (!UtilAll.isBlank(this.unitName)) {
             sb.append("@");
-            sb.append(this.unitName);
+            sb.append(this.unitName); // 如果单元名称不为空，则添加单元名称
         }
 
         if (enableStreamRequestType) {
             sb.append("@");
-            sb.append(RequestType.STREAM);
+            sb.append(RequestType.STREAM); // 如果启用了流请求类型，则添加流请求类型
         }
 
-        return sb.toString();
+        return sb.toString(); // 返回构建好的MQ客户端ID
     }
 
     public String getClientIP() {

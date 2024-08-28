@@ -207,32 +207,56 @@ public class MQAdminUtils {
         }
     }
 
-    public static Map<String, TopicConfigAndQueueMapping> examineTopicConfigAll(String topic, DefaultMQAdminExt defaultMQAdminExt) throws RemotingException,  InterruptedException, MQBrokerException {
+    /**
+     * 查询指定主题在所有Broker上的配置信息
+     *
+     * @param topic 主题名称，需要查询配置信息的主题
+     * @param defaultMQAdminExt RocketMQ的管理员对象，用于调用Broker的相关方法
+     * @return 返回一个Map，键为Broker名称，值为主题配置及其队列映射信息
+     * @throws RemotingException 远程调用异常
+     * @throws InterruptedException 线程中断异常
+     * @throws MQBrokerException RocketMQ Broker异常
+     */
+    public static Map<String, TopicConfigAndQueueMapping> examineTopicConfigAll(String topic, DefaultMQAdminExt defaultMQAdminExt) throws RemotingException, InterruptedException, MQBrokerException {
+        // 初始化用于存储Broker配置信息的Map
         Map<String, TopicConfigAndQueueMapping> brokerConfigMap = new HashMap<>();
+        // 创建客户端元数据对象
         ClientMetadata clientMetadata = new ClientMetadata();
-        //check all the brokers
+
+        // 获取Broker集群信息
         ClusterInfo clusterInfo = defaultMQAdminExt.examineBrokerClusterInfo();
-        if (clusterInfo != null
-                && clusterInfo.getBrokerAddrTable() != null) {
+
+        // 如果集群信息以及Broker地址表不为空，刷新客户端元数据的集群信息
+        if (clusterInfo != null && clusterInfo.getBrokerAddrTable() != null) {
             clientMetadata.refreshClusterInfo(clusterInfo);
         }
+
+        // 遍历所有Broker
         for (String broker : clientMetadata.getBrokerAddrTable().keySet()) {
+            // 查找Broker的主节点地址
             String addr = clientMetadata.findMasterBrokerAddr(broker);
+
             try {
+                // 查询指定主题在当前Broker上的配置信息
                 TopicConfigAndQueueMapping mapping = (TopicConfigAndQueueMapping) defaultMQAdminExt.examineTopicConfig(addr, topic);
-                //allow the config is null
+
+                // 如果配置信息不为空，则将其添加到结果Map中
                 if (mapping != null) {
+                    // 确保映射详情的Broker名称与当前Broker一致
                     if (mapping.getMappingDetail() != null) {
                         assert mapping.getMappingDetail().getBname().equals(broker);
                     }
                     brokerConfigMap.put(broker, mapping);
                 }
-            }  catch (MQBrokerException exception1) {
+            } catch (MQBrokerException exception1) {
+                // 如果异常响应码不为主题不存在，则抛出异常
                 if (exception1.getResponseCode() != ResponseCode.TOPIC_NOT_EXIST) {
                     throw exception1;
                 }
             }
         }
+
+        // 返回所有Broker的主题配置信息Map
         return brokerConfigMap;
     }
 

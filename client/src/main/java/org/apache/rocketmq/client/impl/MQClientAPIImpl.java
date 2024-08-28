@@ -2027,8 +2027,19 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
         return getTopicRouteInfoFromNameServer(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC, timeoutMillis, false);
     }
 
+    /**
+     * 从NameServer获取主题路由信息
+     * 此方法用于查询指定主题的路由信息，包括该主题对应的所有Broker的地址
+     *
+     * @param topic 主题名称，用于识别特定的消息主题
+     * @param timeoutMillis 超时时间，单位为毫秒，用于控制查询操作的等待时间
+     * @throws RemotingException 当与NameServer的通信出现异常时抛出
+     * @throws MQClientException 当客户端使用不当或获取路由信息失败时抛出
+     * @throws InterruptedException 如果线程在等待过程中被中断，则抛出此异常
+     * @return 返回主题的路由数据，包含主题在所有Broker上的分布情况
+     */
     public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis)
-        throws RemotingException, MQClientException, InterruptedException {
+            throws RemotingException, MQClientException, InterruptedException {
         return getTopicRouteInfoFromNameServer(topic, timeoutMillis, true);
     }
 
@@ -2047,36 +2058,34 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
      */
     public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis,
         boolean allowTopicNotExist) throws MQClientException, InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException {
-        // 创建获取路由信息的请求头
-        GetRouteInfoRequestHeader requestHeader = new GetRouteInfoRequestHeader();
-        requestHeader.setTopic(topic); // 设置主题名称
 
-        // 创建远程命令请求，请求类型为根据主题获取路由信息
+        GetRouteInfoRequestHeader requestHeader = new GetRouteInfoRequestHeader();
+        requestHeader.setTopic(topic);
+
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, requestHeader);
 
         // 同步发送请求到NameServer并等待响应
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
-        assert response != null; // 确保有响应返回
+        assert response != null;
 
-        // 根据响应码处理不同的响应情况
         switch (response.getCode()) {
             case ResponseCode.TOPIC_NOT_EXIST: {
                 if (allowTopicNotExist) {
-                    log.warn("get Topic [{}] RouteInfoFromNameServer is not exist value", topic); // 主题不存在时记录警告日志
+                    log.warn("get Topic [{}] RouteInfoFromNameServer is not exist value", topic);
                 }
-                break; // 如果允许主题不存在，则继续后续处理
+                break;
             }
             case ResponseCode.SUCCESS: {
                 byte[] body = response.getBody();
                 if (body != null) {
-                    return TopicRouteData.decode(body, TopicRouteData.class); // 解析响应体为TopicRouteData对象并返回
+                    return TopicRouteData.decode(body, TopicRouteData.class);
                 }
             }
             default:
                 break;
         }
 
-        throw new MQClientException(response.getCode(), response.getRemark()); // 对于其他响应码，抛出异常
+        throw new MQClientException(response.getCode(), response.getRemark());
     }
 
     public TopicList getTopicListFromNameServer(final long timeoutMillis)

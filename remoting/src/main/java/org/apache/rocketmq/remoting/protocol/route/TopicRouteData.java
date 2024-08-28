@@ -117,15 +117,28 @@ public class TopicRouteData extends RemotingSerializable {
         return topicRouteData;
     }
 
+    /**
+     * 检查主题路由数据是否发生变化
+     *
+     * @param oldData 之前的主题路由数据，用于对比
+     * @return 如果主题路由数据发生变化，返回true；否则返回false
+     */
     public boolean topicRouteDataChanged(TopicRouteData oldData) {
+        // 如果之前的数据为空，直接认为数据发生了变化
         if (oldData == null)
             return true;
+
+        // 复制之前的数据和当前数据，避免直接操作原始数据
         TopicRouteData old = new TopicRouteData(oldData);
         TopicRouteData now = new TopicRouteData(this);
+
+        // 对之前和当前的数据中的队列数据和Broker数据进行排序，确保比较时的一致性
         Collections.sort(old.getQueueDatas());
         Collections.sort(old.getBrokerDatas());
         Collections.sort(now.getQueueDatas());
         Collections.sort(now.getBrokerDatas());
+
+        // 比较排序后的数据，如果不相等，说明数据发生了变化
         return !old.equals(now);
     }
 

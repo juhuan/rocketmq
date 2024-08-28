@@ -16,6 +16,17 @@
  */
 package org.apache.rocketmq.common.namesrv;
 
+/**
+ * 命名服务器更新回调接口
+ * 用于在命名服务器地址变更时通知客户端
+ */
 public interface NameServerUpdateCallback {
+    /**
+     * 当命名服务器地址发生改变时调用
+     *
+     * @param namesrvAddress 新的命名服务器地址
+     * @return 返回新的命名服务器地址的字符串表示
+     */
     String onNameServerAddressChange(String namesrvAddress);
 }
+

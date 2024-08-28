@@ -57,19 +57,27 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public void detectByOneRound() {
+        // 遍历故障项表，检查每个项的状态
         for (Map.Entry<String, FaultItem> item : this.faultItemTable.entrySet()) {
             FaultItem brokerItem = item.getValue();
+            // 检查当前时间是否达到了检查的时间间隔
             if (System.currentTimeMillis() - brokerItem.checkStamp >= 0) {
+                // 更新检查时间戳为当前时间加上检测间隔
                 brokerItem.checkStamp = System.currentTimeMillis() + this.detectInterval;
+                // 解析broker项的地址
                 String brokerAddr = resolver.resolve(brokerItem.getName());
+                // 如果地址解析失败，则移除该项
                 if (brokerAddr == null) {
                     faultItemTable.remove(item.getKey());
                     continue;
                 }
+                // 如果服务检测器未初始化，则跳过本次循环
                 if (null == serviceDetector) {
                     continue;
                 }
+                // 检测服务是否可用
                 boolean serviceOK = serviceDetector.detect(brokerAddr, detectTimeout);
+                // 如果服务可用且之前不可达，则更新可达标志并记录日志
                 if (serviceOK && !brokerItem.reachableFlag) {
                     log.info(brokerItem.name + " is reachable now, then it can be used.");
                     brokerItem.reachableFlag = true;
@@ -77,6 +85,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             }
         }
     }
+
 
     @Override
     public void startDetector() {

@@ -44,6 +44,11 @@ public class TopicPublishInfo {
         this.orderTopic = orderTopic;
     }
 
+    /**
+     * 检查消息队列列表是否已初始化且不为空
+     *
+     * @return 如果消息队列列表不为null且不为空，则返回true；否则返回false
+     */
     public boolean ok() {
         return null != this.messageQueueList && !this.messageQueueList.isEmpty();
     }
