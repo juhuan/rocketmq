@@ -734,20 +734,40 @@ public class MQClientInstance {
         return true;
     }
 
+    /**
+     * 向Broker发送V2版本的心跳请求
+     *
+     * @param id Broker的唯一标识
+     * @param brokerName Broker的名称
+     * @param addr Broker的地址
+     * @param heartbeatDataWithSub 包含订阅信息的心跳数据
+     * @param heartbeatDataWithoutSub 不包含订阅信息的心跳数据
+     * @param currentHeartbeatFingerprint 当前的心跳指纹，用于检查Broker状态是否变更
+     * @return 如果心跳发送成功返回true，否则返回false
+     */
     private boolean sendHeartbeatToBrokerV2(long id, String brokerName, String addr, HeartbeatData heartbeatDataWithSub,
-        HeartbeatData heartbeatDataWithoutSub, int currentHeartbeatFingerprint) {
+            HeartbeatData heartbeatDataWithoutSub, int currentHeartbeatFingerprint) {
         try {
+            // 初始化心跳版本
             int version = 0;
+            // 检查Broker是否支持V2版本心跳
             boolean isBrokerSupportV2 = brokerSupportV2HeartbeatSet.contains(addr);
+            // 用于存储心跳V2结果
             HeartbeatV2Result heartbeatV2Result = null;
+
+            // 如果Broker支持V2版本且心跳指纹未变更，则发送不包含订阅信息的心跳请求
             if (isBrokerSupportV2 && null != brokerAddrHeartbeatFingerprintTable.get(addr) && brokerAddrHeartbeatFingerprintTable.get(addr) == currentHeartbeatFingerprint) {
                 heartbeatV2Result = this.mQClientAPIImpl.sendHeartbeatV2(addr, heartbeatDataWithoutSub, clientConfig.getMqClientApiTimeout());
+                // 如果Broker订阅信息有变更，则清除其心跳指纹
                 if (heartbeatV2Result.isSubChange()) {
                     brokerAddrHeartbeatFingerprintTable.remove(addr);
                 }
+                // 记录日志
                 log.info("sendHeartbeatToAllBrokerV2 simple brokerName: {} subChange: {} brokerAddrHeartbeatFingerprintTable: {}", brokerName, heartbeatV2Result.isSubChange(), JSON.toJSONString(brokerAddrHeartbeatFingerprintTable));
             } else {
+                // 否则，发送包含订阅信息的心跳请求
                 heartbeatV2Result = this.mQClientAPIImpl.sendHeartbeatV2(addr, heartbeatDataWithSub, clientConfig.getMqClientApiTimeout());
+                // 如果Broker首次支持V2版本心跳或订阅信息变更，则更新相关表格
                 if (heartbeatV2Result.isSupportV2()) {
                     brokerSupportV2HeartbeatSet.add(addr);
                     if (heartbeatV2Result.isSubChange()) {
@@ -756,13 +776,18 @@ public class MQClientInstance {
                         brokerAddrHeartbeatFingerprintTable.put(addr, currentHeartbeatFingerprint);
                     }
                 }
+                // 记录日志
                 log.info("sendHeartbeatToAllBrokerV2 normal brokerName: {} subChange: {} brokerAddrHeartbeatFingerprintTable: {}", brokerName, heartbeatV2Result.isSubChange(), JSON.toJSONString(brokerAddrHeartbeatFingerprintTable));
             }
+
+            // 更新Broker版本信息
             version = heartbeatV2Result.getVersion();
             if (!this.brokerVersionTable.containsKey(brokerName)) {
                 this.brokerVersionTable.put(brokerName, new HashMap<>(4));
             }
             this.brokerVersionTable.get(brokerName).put(addr, version);
+
+            // 记录并日志心跳成功信息
             long times = this.sendHeartbeatTimesTotal.getAndIncrement();
             if (times % 20 == 0) {
                 log.info("send heart beat to broker[{} {} {}] success", brokerName, id, addr);
@@ -770,6 +795,7 @@ public class MQClientInstance {
             }
             return true;
         } catch (Exception e) {
+            // 处理心跳发送异常情况
             if (this.isBrokerInNameServer(addr)) {
                 log.warn("sendHeartbeatToAllBrokerV2 send heart beat to broker[{} {} {}] failed", brokerName, id, addr, e);
             } else {

@@ -702,14 +702,25 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.mqFaultStrategy.updateFaultItem(brokerName, currentLatency, isolation, reachable);
     }
 
+    /**
+     * 验证名称服务器设置是否正确
+     *
+     * 此方法用于检查当前实例中配置的名称服务器地址是否有效它通过MQClientAPI实例获取名称服务器地址列表，
+     * 并检查该列表是否为空如果列表为空，则抛出MQClientException异常，提示用户名称服务器地址未设置，
+     * 并提供相应的FAQ链接帮助用户解决问题
+     *
+     * @throws MQClientException 如果没有设置名称服务器地址，则抛出此异常
+     */
     private void validateNameServerSetting() throws MQClientException {
+        // 获取名称服务器地址列表
         List<String> nsList = this.getMqClientFactory().getMQClientAPIImpl().getNameServerAddressList();
+        // 检查名称服务器地址列表是否为空
         if (null == nsList || nsList.isEmpty()) {
+            // 如果列表为空，抛出异常，提示用户名称服务器地址未设置，并提供FAQ链接帮助解决
             throw new MQClientException(
                     "No name server address, please set it." + FAQUrl.suggestTodo(FAQUrl.NAME_SERVER_ADDR_NOT_EXIST_URL),
                     null).setResponseCode(ClientErrorCode.NO_NAME_SERVER_EXCEPTION);
         }
-
     }
 
     private SendResult sendDefaultImpl(
@@ -738,6 +749,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             boolean      resetIndex  = false;
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                // TODO: 这里为啥要重置队列？
                 if (times > 0) {
                     resetIndex = true;
                 }
@@ -1499,12 +1511,23 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     /**
-     * DEFAULT SYNC -------------------------------------------------------
+     * 默认同步发送消息方法
+     * 此方法用于在同步模式下发送消息到消息队列
+     * 它会等待直到消息成功发送或者遇到异常
+     *
+     * @param msg 要发送的消息对象
+     * @return 发送结果，包含消息是否成功发送等信息
+     * @throws MQClientException 当客户端配置错误时抛出
+     * @throws RemotingException 当网络通信异常时抛出
+     * @throws MQBrokerException 当消息队列Broker处理异常时抛出
+     * @throws InterruptedException 当线程被中断时抛出
      */
     public SendResult send(
             Message msg) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        // 使用默认的发送超时配置进行消息发送
         return send(msg, this.defaultMQProducer.getSendMsgTimeout());
     }
+
 
     public void endTransaction(
             final Message msg,
@@ -1561,6 +1584,20 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.asyncSenderExecutor = asyncSenderExecutor;
     }
 
+    /**
+     * 同步发送消息.
+     *
+     * 本方法通过同步方式发送消息，意味着调用者会等待直到消息发送成功或超时.
+     * 使用此方法需要确保对异常情况的处理，例如网络异常、消息大小限制等.
+     *
+     * @param msg 待发送的消息对象，不得为null.
+     * @param timeout 消息发送的超时时间（毫秒），应为正数.
+     * @return 返回发送结果对象，包含消息是否成功发送等信息.
+     * @throws MQClientException 如果客户端参数配置错误，或者消息大小超过限制等.
+     * @throws RemotingException 如果网络传输异常.
+     * @throws MQBrokerException 如果消息 broker 端处理异常.
+     * @throws InterruptedException 如果线程被中断.
+     */
     public SendResult send(Message msg,
                            long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         return this.sendDefaultImpl(msg, CommunicationMode.SYNC, null, timeout);

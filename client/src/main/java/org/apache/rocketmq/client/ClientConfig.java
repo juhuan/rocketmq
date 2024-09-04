@@ -88,12 +88,14 @@ public class ClientConfig {
     protected boolean enableStreamRequestType = false;
 
     /**
-     * Enable the fault tolerance mechanism of the client sending process.
-     * DO NOT OPEN when ORDER messages are required.
-     * Turning on will interfere with the queue selection functionality,
-     * possibly conflicting with the order message.
+     * 启用客户端发送过程的故障容错机制。
+     * 当需要处理ORDER消息时，不应启用该机制。
+     * 因为打开此机制可能会干扰队列选择功能，
+     * 从而可能与顺序消息发生冲突。
+     * JVM参数："com.rocketmq.sendLatencyEnable"
      */
     private boolean sendLatencyEnable = Boolean.parseBoolean(System.getProperty(SEND_LATENCY_ENABLE, "false"));
+
     private boolean startDetectorEnable = Boolean.parseBoolean(System.getProperty(START_DETECTOR_ENABLE, "false"));
 
     private boolean enableHeartbeatChannelEventListener = true;

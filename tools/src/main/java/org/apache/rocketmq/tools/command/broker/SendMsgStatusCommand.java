@@ -80,6 +80,7 @@ public class SendMsgStatusCommand implements SubCommand {
             int messageSize = commandLine.hasOption('s') ? Integer.parseInt(commandLine.getOptionValue('s')) : 128;
             int count = commandLine.hasOption('c') ? Integer.parseInt(commandLine.getOptionValue('c')) : 50;
 
+            // TODO 这条写这干嘛？实际会多发一条消息
             producer.send(buildMessage(brokerName, 16));
 
             for (int i = 0; i < count; i++) {

@@ -723,21 +723,39 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.defaultMQProducerImpl.send(msg, selector, arg, sendCallback, timeout);
     }
 
+    /**
+     * 同步或异步发送消息到指定的消息队列
+     *
+     * @param msg           要发送的消息对象
+     * @param mq            指定发送消息的目标消息队列，如果为null，则使用默认队列
+     * @param sendCallback  发送回调函数，用于异步发送，如果为null，则表示同步发送
+     * @return 同步发送时返回发送结果，异步发送时返回null
+     * @throws MQClientException      客户端MQ操作异常
+     * @throws RemotingException      远程调用异常
+     * @throws InterruptedException    线程中断异常
+     * @throws MQBrokerException      MQBroker处理异常
+     */
     public SendResult sendDirect(Message msg, MessageQueue mq,
-        SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException, MQBrokerException {
-        // send in sync mode
+            SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException, MQBrokerException {
+        // 当sendCallback为null时，表示使用同步方式发送消息
         if (sendCallback == null) {
+            // 如果mq也为null，则使用默认队列发送消息
             if (mq == null) {
                 return this.defaultMQProducerImpl.send(msg);
             } else {
+                // 否则，使用指定的队列发送消息
                 return this.defaultMQProducerImpl.send(msg, mq);
             }
         } else {
+            // 当sendCallback不为null时，表示使用异步方式发送消息
             if (mq == null) {
+                // 如果队列也为null，则使用默认队列异步发送消息
                 this.defaultMQProducerImpl.send(msg, sendCallback);
             } else {
+                // 否则，使用指定队列异步发送消息
                 this.defaultMQProducerImpl.send(msg, mq, sendCallback);
             }
+            // 异步发送时不返回任何值
             return null;
         }
     }

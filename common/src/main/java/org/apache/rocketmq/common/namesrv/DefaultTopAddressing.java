@@ -106,44 +106,63 @@ public class DefaultTopAddressing implements TopAddressing {
         }
     }
 
+    /**
+     * 获取名字服务器地址
+     *
+     * @param verbose 是否输出详细的错误信息
+     * @param timeoutMills 超时时间，单位为毫秒
+     * @return 名字服务器地址，如果获取失败则返回null
+     */
     public final String fetchNSAddr(boolean verbose, long timeoutMills) {
         StringBuilder url = new StringBuilder(this.wsAddr);
         try {
+            // 如果参数不为空，则构建请求的查询字符串
             if (null != para && para.size() > 0) {
+                // 如果unitName不为空，则将其添加到URL中
                 if (!UtilAll.isBlank(this.unitName)) {
                     url.append("-").append(this.unitName).append("?nofix=1&");
                 }
                 else {
                     url.append("?");
                 }
+                // 遍历参数，并将其添加到URL中
                 for (Map.Entry<String, String> entry : this.para.entrySet()) {
                     url.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
                 }
+                // 移除最后一个多余的"&"
                 url = new StringBuilder(url.substring(0, url.length() - 1));
             }
+            // 如果参数为空，则直接使用wsAddr和unitName构建URL
             else {
                 if (!UtilAll.isBlank(this.unitName)) {
                     url.append("-").append(this.unitName).append("?nofix=1");
                 }
             }
 
+            // 使用构建好的URL发起HTTP GET请求
             HttpTinyClient.HttpResult result = HttpTinyClient.httpGet(url.toString(), null, null, "UTF-8", timeoutMills);
+            // 如果HTTP响应状态码为200，则解析响应内容
             if (200 == result.code) {
                 String responseStr = result.content;
+                // 如果响应内容不为空，则返回处理后的响应内容
                 if (responseStr != null) {
                     return clearNewLine(responseStr);
                 } else {
+                    // 如果响应内容为空，则记录错误日志
                     LOGGER.error("fetch nameserver address is null");
                 }
             } else {
+                // 如果HTTP响应状态码不是200，则记录错误日志
                 LOGGER.error("fetch nameserver address failed. statusCode=" + result.code);
             }
         } catch (IOException e) {
+            // 如果verbose为true且发生IO异常，则记录详细的异常信息
             if (verbose) {
                 LOGGER.error("fetch name server address exception", e);
             }
         }
 
+        // 如果verbose为true且获取名字服务器地址失败，则生成并记录错误信息
         if (verbose) {
             String errorMsg =
                 "connect to " + url + " failed, maybe the domain name " + MixAll.getWSAddr() + " not bind in /etc/hosts";
@@ -151,8 +170,10 @@ public class DefaultTopAddressing implements TopAddressing {
 
             LOGGER.warn(errorMsg);
         }
+        // 获取名字服务器地址失败，返回null
         return null;
     }
+
 
     public String getNsAddr() {
         return nsAddr;
